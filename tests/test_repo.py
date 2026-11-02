@@ -40,7 +40,9 @@ class Repo(unittest.TestCase):
 
     def test_root_matches_the_reel(self):
         root = sorted(d for d in os.listdir(ROOT) if not d.startswith(".git"))
-        self.assertEqual(root, sorted([".claude-plugin", "LICENSE", "README.md", "tests"] + SKILLS))
+        # fork additions: project-local skills + paper guard, setup scripts, German guide, trader/ config
+        fork = [".claude", "ANLEITUNG.md", "setup", "trader"]
+        self.assertEqual(root, sorted([".claude-plugin", "LICENSE", "README.md", "tests"] + SKILLS + fork))
 
     def test_frontmatter_name_and_description(self):
         for s in SKILLS:
@@ -133,6 +135,40 @@ class Repo(unittest.TestCase):
             cfg = json.load(fh)
         self.assertIs(cfg["paper"], True)
         self.assertIs(cfg.get("allow_options", False), False)
+
+
+class PaperOnlyFork(unittest.TestCase):
+    """The fork's cloud setup: paper only, every order tool blocked, skills linked."""
+
+    def test_project_config_is_paper_only(self):
+        with open(os.path.join(ROOT, "trader", "config.json")) as fh:
+            cfg = json.load(fh)
+        self.assertIs(cfg["paper"], True)
+        for k in ("allow_options", "allow_margin", "allow_short"):
+            self.assertIs(cfg.get(k, False), False, k)
+        self.assertNotIn("@", cfg.get("sec_user_agent", ""), "no personal email in the public repo")
+
+    def test_every_skill_is_linked_into_the_project(self):
+        for s in SKILLS:
+            self.assertTrue(os.path.isfile(os.path.join(ROOT, ".claude", "skills", s, "SKILL.md")), s)
+
+    def test_hook_blocks_broker_tools(self):
+        import subprocess
+        import sys
+        hook = os.path.join(ROOT, ".claude", "hooks", "block_orders.py")
+        def run(name):
+            return subprocess.run([sys.executable, hook], input=json.dumps({"tool_name": name}).encode(),
+                                  capture_output=True).returncode
+        for name in ("mcp__alpaca__place_stock_order", "mcp__alpaca__close_position",
+                     "mcp__alpaca__get_account_info", "mcp__claude_ai_Interactive_Brokers__draft_order",
+                     "mcp__broker__submit_order", "mcp__x__cancel_all_orders"):
+            self.assertEqual(run(name), 2, name)
+        for name in ("mcp__github__get_me", "Bash", "Read"):
+            self.assertEqual(run(name), 0, name)
+        with open(os.path.join(ROOT, ".claude", "settings.json")) as fh:
+            settings = json.load(fh)
+        self.assertIn("mcp__alpaca", settings["permissions"]["deny"])
+        self.assertNotIn("allow", settings["permissions"])
 
 
 if __name__ == "__main__":

@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+# trader/ holds the daily working files (watchlist, plan, orders, state).
+# Only the paper-trading config is versioned.
+trader/*
+!trader/config.json

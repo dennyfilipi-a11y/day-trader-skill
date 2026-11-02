@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "deny": [
+      "mcp__alpaca",
+      "mcp__ibkr",
+      "mcp__interactive-brokers"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "mcp__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/hooks/block_orders.py\""
+          }
+        ]
+      }
+    ]
+  }
+}
